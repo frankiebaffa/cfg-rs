@@ -35,6 +35,7 @@ pub type Cfg = HashMap<String, String>;
 pub trait FromCfg {
     fn parse(contents: String) -> Result<Cfg>;
     fn from_file<P: Into<PathBuf>>(path: P) -> Result<Cfg>;
+    fn from_file_opt<P: Into<PathBuf>>(path: P) -> Result<Option<Cfg>>;
 }
 
 impl FromCfg for Cfg {
@@ -99,5 +100,15 @@ impl FromCfg for Cfg {
             .map_err(|e| CfgError::IOError(e))?;
 
         Self::parse(contents)
+    }
+
+    fn from_file_opt<P: Into<PathBuf>>(path: P) -> Result<Option<Cfg>> {
+        let path: PathBuf = path.into();
+
+        if !path.is_file() {
+            return Ok(None);
+        }
+
+        Self::from_file(path).map(|v| Some(v))
     }
 }
