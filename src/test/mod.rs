@@ -44,4 +44,15 @@ fn test_2() {
     assert_eq!("Three", list.get(2).unwrap());
     assert_eq!("Four", list.get(3).unwrap());
     assert_eq!("Five", list.get(4).unwrap());
+
+    assert!(cfg.is_truthy("firstistrue"));
+    assert!(cfg.is_truthy("secondistrue"));
+    assert!(cfg.is_truthy("thirdistrue"));
+    assert!(cfg.is_truthy("fourthistrue"));
+    assert!(!cfg.is_truthy("fifthistrue"));
+    assert!(!cfg.is_truthy("sixthistrue"));
+    assert!(!cfg.is_truthy("seventhistrue"));
+    assert!(!cfg.is_truthy("eighthistrue"));
+    assert!(!cfg.is_truthy("ninethistrue"));
+    assert!(!cfg.is_truthy("tenthistrue"));
 }

@@ -99,4 +99,12 @@ impl Config {
     pub fn contains_key<S: AsRef<str>>(&self, key: S) -> bool {
         self.kvs.contains_key(key.as_ref())
     }
+
+    pub fn value_is_truthy<S: AsRef<str>>(value: S) -> bool {
+        matches!(value.as_ref().to_lowercase().as_str(), "true"|"1"|"y")
+    }
+
+    pub fn is_truthy<S: AsRef<str>>(&self, key: S) -> bool {
+        self.value(key.as_ref()).is_some_and(Self::value_is_truthy)
+    }
 }
