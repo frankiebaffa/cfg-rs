@@ -3,65 +3,32 @@ mod test;
 
 use std::{
     collections::HashMap,
-    error::Error as StdError,
-    fmt::{ Display, Formatter, Result as FmtResult, },
     fs::OpenOptions,
-    io::{ Error as IOError, Read, },
+    io::{ BufReader, BufRead, Read, self, },
     path::PathBuf,
-    result::Result as StdResult,
 };
 
-#[derive(Debug)]
-pub enum CfgError {
-    IOError(IOError),
-    ParseError(String),
+#[derive(Default)]
+pub struct Config {
+    kvs: HashMap<String, Vec<String>>,
 }
 
-impl Display for CfgError {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        match self {
-            Self::IOError(e) => e.fmt(f),
-            Self::ParseError(e) => e.fmt(f),
-        }
-    }
-}
-
-impl StdError for CfgError {}
-
-pub type Result<T> = StdResult<T, CfgError>;
-
-pub type Cfg = HashMap<String, String>;
-
-pub trait FromCfg {
-    fn parse(contents: String) -> Result<Cfg>;
-    fn from_file<P: Into<PathBuf>>(path: P) -> Result<Cfg>;
-    fn from_file_opt<P: Into<PathBuf>>(path: P) -> Result<Option<Cfg>>;
-}
-
-impl FromCfg for Cfg {
-    fn parse(contents: String) -> Result<Cfg> {
-        let mut lines = contents.lines();
-
-        let mut cfg = Cfg::new();
+impl Config {
+    pub fn parse_buffered<R: Read>(contents: BufReader<R>) -> io::Result<Self> {
+        let mut cfg = Config::default();
 
         let mut line_no = 0;
+        for line_res in contents.lines() {
+            let line = line_res?;
 
-        loop {
             line_no += 1;
 
-            let line = match lines.next() {
-                Some(line) => line,
-                None => break,
-            };
-
-            if line.trim().is_empty() {
-                continue;
-            } else if &line[0..2] == "//" {
+            if line.is_empty() || line.starts_with("//") {
                 continue;
             }
 
             if !line.contains("=") {
-                return Err(CfgError::ParseError(format!(
+                return Err(io::Error::new(io::ErrorKind::Other, format!(
                     "No key-value pair found on line {line_no}."
                 )));
             }
@@ -70,45 +37,66 @@ impl FromCfg for Cfg {
 
             let key = match key_val_split.next() {
                 Some(key) => key.trim(),
-                None => return Err(CfgError::ParseError(format!(
+                None => return Err(io::Error::new(io::ErrorKind::Other, format!(
                     "No key found on line {line_no}."
                 ))),
             };
 
-            let rest = key_val_split.collect::<String>();
-
-            let mut value = rest.trim();
-
-            if value.starts_with("\"") && value.ends_with("\"") {
-                value = &value[1..value.len()-1];
+            let value = key_val_split.collect::<String>();
+            if !cfg.kvs.contains_key(key) {
+                cfg.kvs.insert(key.to_owned(), Vec::new());
             }
 
-            cfg.insert(key.to_string(), value.to_string());
+            cfg.kvs.get_mut(key).unwrap().push(value.to_string());
         }
 
         Ok(cfg)
     }
 
-    fn from_file<P: Into<PathBuf>>(path: P) -> Result<Cfg> {
-        let path: PathBuf = path.into();
-
-        let mut file = OpenOptions::new().read(true).open(&path)
-            .map_err(|e| CfgError::IOError(e))?;
-
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)
-            .map_err(|e| CfgError::IOError(e))?;
-
-        Self::parse(contents)
+    pub fn parse<R: Read>(contents: R) -> io::Result<Self> {
+        Self::parse_buffered(BufReader::new(contents))
     }
 
-    fn from_file_opt<P: Into<PathBuf>>(path: P) -> Result<Option<Cfg>> {
+    pub fn from_string<S: AsRef<str>>(contents: S) -> io::Result<Self> {
+        let bytes = contents.as_ref().as_bytes();
+        Self::parse(bytes)
+    }
+
+    pub fn from_file<P: Into<PathBuf>>(path: P) -> io::Result<Self> {
+        let path: PathBuf = path.into();
+
+        let mut file = OpenOptions::new().read(true).open(&path)?;
+
+        Self::parse(&mut file)
+    }
+
+    pub fn from_file_opt<P: Into<PathBuf>>(path: P) -> io::Result<Option<Self>> {
         let path: PathBuf = path.into();
 
         if !path.is_file() {
             return Ok(None);
         }
 
-        Self::from_file(path).map(|v| Some(v))
+        Self::from_file(path).map(Some)
+    }
+
+    pub fn value<S: AsRef<str>>(&self, key: S) -> Option<&String> {
+        self.kvs.get(key.as_ref()).and_then(|vs| vs.first())
+    }
+
+    pub fn values<S: AsRef<str>>(&self, key: S) -> Option<&Vec<String>> {
+        self.kvs.get(key.as_ref())
+    }
+
+    pub fn value_mut<S: AsRef<str>>(&mut self, key: S) -> Option<&mut String> {
+        self.kvs.get_mut(key.as_ref()).and_then(|vs| vs.first_mut())
+    }
+
+    pub fn values_mut<S: AsRef<str>>(&mut self, key: S) -> Option<&mut Vec<String>> {
+        self.kvs.get_mut(key.as_ref())
+    }
+
+    pub fn contains_key<S: AsRef<str>>(&self, key: S) -> bool {
+        self.kvs.contains_key(key.as_ref())
     }
 }
