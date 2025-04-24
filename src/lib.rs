@@ -14,6 +14,17 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn add_value<K: AsRef<str>, V: AsRef<str>>(&mut self, k: K, v: V) {
+        let key = k.as_ref();
+        let value = v.as_ref();
+
+        if !self.kvs.contains_key(key) {
+            self.kvs.insert(key.to_owned(), Vec::new());
+        }
+
+        self.kvs.get_mut(key).unwrap().push(value.to_owned());
+    }
+
     pub fn parse_buffered<R: Read>(contents: BufReader<R>) -> io::Result<Self> {
         let mut cfg = Config::default();
 
@@ -29,11 +40,7 @@ impl Config {
             let key = key_val_split.next().unwrap_or("");
             let value = key_val_split.collect::<String>();
 
-            if !cfg.kvs.contains_key(key) {
-                cfg.kvs.insert(key.to_owned(), Vec::new());
-            }
-
-            cfg.kvs.get_mut(key).unwrap().push(value);
+            cfg.add_value(key, value);
         }
 
         Ok(cfg)
