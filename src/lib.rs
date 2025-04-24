@@ -8,7 +8,7 @@ use std::{
     path::PathBuf,
 };
 
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Config {
     kvs: HashMap<String, Vec<String>>,
 }
