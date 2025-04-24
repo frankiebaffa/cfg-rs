@@ -45,6 +45,9 @@ fn test_2() {
     assert_eq!("Four", list.get(3).unwrap());
     assert_eq!("Five", list.get(4).unwrap());
 
+    let list_last = cfg.value("list").unwrap();
+    assert_eq!("Five", list_last);
+
     assert!(cfg.is_truthy("firstistrue"));
     assert!(cfg.is_truthy("secondistrue"));
     assert!(cfg.is_truthy("thirdistrue"));
@@ -54,5 +57,17 @@ fn test_2() {
     assert!(!cfg.is_truthy("seventhistrue"));
     assert!(!cfg.is_truthy("eighthistrue"));
     assert!(!cfg.is_truthy("ninethistrue"));
-    assert!(!cfg.is_truthy("tenthistrue"));
+    assert!(cfg.is_truthy("tenthistrue"));
+}
+
+#[test]
+fn test_3() {
+    let cfg = Config::from_file("./resources/test2.cfg").unwrap();
+    assert_eq!("1", cfg.value("test").unwrap());
+    assert_eq!("", cfg.value("notakvpair").unwrap());
+    assert_eq!("", cfg.value("alsonotakvpair").unwrap());
+    assert_eq!("0", cfg.value(" that").unwrap());
+    assert_eq!(" that", cfg.value("this").unwrap());
+    assert_eq!("first", cfg.values("").unwrap().get(0).unwrap());
+    assert_eq!("second", cfg.value("").unwrap());
 }

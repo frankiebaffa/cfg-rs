@@ -17,37 +17,23 @@ impl Config {
     pub fn parse_buffered<R: Read>(contents: BufReader<R>) -> io::Result<Self> {
         let mut cfg = Config::default();
 
-        let mut line_no = 0;
         for line_res in contents.lines() {
             let line = line_res?;
-
-            line_no += 1;
 
             if line.is_empty() || line.starts_with("//") {
                 continue;
             }
 
-            if !line.contains("=") {
-                return Err(io::Error::new(io::ErrorKind::Other, format!(
-                    "No key-value pair found on line {line_no}."
-                )));
-            }
-
             let mut key_val_split = line.split("=");
 
-            let key = match key_val_split.next() {
-                Some(key) => key.trim(),
-                None => return Err(io::Error::new(io::ErrorKind::Other, format!(
-                    "No key found on line {line_no}."
-                ))),
-            };
-
+            let key = key_val_split.next().unwrap_or("");
             let value = key_val_split.collect::<String>();
+
             if !cfg.kvs.contains_key(key) {
                 cfg.kvs.insert(key.to_owned(), Vec::new());
             }
 
-            cfg.kvs.get_mut(key).unwrap().push(value.to_string());
+            cfg.kvs.get_mut(key).unwrap().push(value);
         }
 
         Ok(cfg)
@@ -81,7 +67,7 @@ impl Config {
     }
 
     pub fn value<S: AsRef<str>>(&self, key: S) -> Option<&String> {
-        self.kvs.get(key.as_ref()).and_then(|vs| vs.first())
+        self.kvs.get(key.as_ref()).and_then(|vs| vs.last())
     }
 
     pub fn values<S: AsRef<str>>(&self, key: S) -> Option<&Vec<String>> {
@@ -89,7 +75,7 @@ impl Config {
     }
 
     pub fn value_mut<S: AsRef<str>>(&mut self, key: S) -> Option<&mut String> {
-        self.kvs.get_mut(key.as_ref()).and_then(|vs| vs.first_mut())
+        self.kvs.get_mut(key.as_ref()).and_then(|vs| vs.last_mut())
     }
 
     pub fn values_mut<S: AsRef<str>>(&mut self, key: S) -> Option<&mut Vec<String>> {
@@ -101,7 +87,7 @@ impl Config {
     }
 
     pub fn value_is_truthy<S: AsRef<str>>(value: S) -> bool {
-        matches!(value.as_ref().to_lowercase().as_str(), "true"|"1"|"y")
+        !matches!(value.as_ref().to_lowercase().as_str(), ""|"0"|"false"|"n")
     }
 
     pub fn is_truthy<S: AsRef<str>>(&self, key: S) -> bool {
