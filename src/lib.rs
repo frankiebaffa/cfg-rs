@@ -25,6 +25,26 @@ impl Config {
         self.kvs.get_mut(key).unwrap().push(value.to_owned());
     }
 
+    pub fn remove<K: AsRef<str>>(&mut self, k: K) -> Option<Vec<String>> {
+        self.kvs.remove(k.as_ref())
+    }
+
+    pub fn pop<K: AsRef<str>>(&mut self, k: K) -> Option<String> {
+        let key = k.as_ref();
+        if !self.kvs.contains_key(key) {
+            return None;
+        }
+
+        let values = self.kvs.get_mut(key).unwrap();
+        let value = values.pop();
+
+        if values.is_empty() {
+            self.kvs.remove(key);
+        }
+
+        value
+    }
+
     pub fn parse_buffered<R: Read>(contents: BufReader<R>) -> io::Result<Self> {
         let mut cfg = Config::default();
 
